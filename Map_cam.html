@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Choropleth Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datasource@0.1.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.1/papaparse.min.js"></script>
+  <style>
+    
+
+    canvas{
+   
+    width:120%;
+    
+ 
+
+}
+
+
+  </style>
+</head>
+
+<body>
+  
+  <div class="chartCard">
+    <div class="chartBox">
+      <canvas id="myChart"></canvas>
+    </div>
+  </div>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/chartjs-chart-geo@4.3.4/build/index.umd.min.js"></script>
+
+  <script>
+    const url = 'https://unpkg.com/world-atlas@2.0.2/countries-50m.json';
+    const csvUrl = 'metadata_gender.csv'; // Chemin du fichier CSV
+
+    Promise.all([
+      fetch(url).then(res => res.json()),
+      fetch(csvUrl).then(res => res.text())
+    ]).then(([topoData, csvData]) => {
+      // Parse le CSV
+      const parsedData = Papa.parse(csvData, { header: true }).data;
+
+      // Crée un mapping entre les pays et leurs valeurs
+      const countryData = {};
+      parsedData.forEach(row => {
+        if (row.Entity && row.Year === "2020") { // Filtre par l'année 2022
+          countryData[row.Entity] = parseFloat(row["Mean years of schooling (ISCED 1 or higher), population 25+ years, adjusted gender parity index (GPIA)"]) || 0;
+        }
+      });
+
+      // Convertit les données TopoJSON en GeoJSON
+      const countries = ChartGeo.topojson.feature(topoData, topoData.objects.countries).features;
+
+      // Prépare les données pour le graphique
+      const data = {
+        labels: countries.map(country => country.properties.name),
+        datasets: [{
+          label: 'Education Gender Parity Index (2020)',
+          data: countries.map(country => ({
+            feature: country,
+            value: countryData[country.properties.name] || 0 ,// Valeur associée au pays
+            
+          })),
+        }]
+      };
+
+      // Config
+      const config = {
+        type: 'choropleth',
+        data,
+        options: {
+          showOutline: true,
+          showGraticule: true,
+          
+          plugins: {
+            legend: { display: false },
+          },
+          
+          scales: {
+            projection: {
+              axis: 'x',
+              projection: 'equalEarth',
+            },
+
+            color: {
+              axis: 'x',
+              interpolate: (v) => {
+                
+                if (v < 0.4) return '#4A9DC7';
+                if (v < 0.6) return '#F8CBB5';
+                if (v < 0.8) return '#FC9797';
+                
+              },
+              legend: {
+                position: 'bottom-right',
+                align: 'right',
+              },
+            },
+            
+          },
+         
+        }
+      };
+
+      // Instancie le graphique
+      new Chart(document.getElementById('myChart'), config);
+    }).catch(error => console.error('Error loading data:', error));
+  </script>
+
+</body>
+
+</html>
